@@ -447,3 +447,60 @@ class GoogleSheetsManager:
         except Exception as e:
             logger.error(f"Failed to create summary sheet: {e}")
             raise
+
+    # Add this method to your existing GoogleSheetsManager class in src/sheets_manager.py
+
+    def write_usdt_transactions_to_sheet(self, transactions: List[Dict], worksheet_name: str = "TRONSCAN"):
+        """Write simplified USDT transactions (HASH, WALLET, AMT) to sheet"""
+        try:
+            # Try to get existing worksheet or create new one
+            try:
+                worksheet = self.workbook.worksheet(worksheet_name)
+                logger.info(f"Using existing worksheet: {worksheet_name}")
+            except gspread.WorksheetNotFound:
+                worksheet = self.workbook.add_worksheet(title=worksheet_name, rows=1000, cols=10)
+                logger.info(f"Created new worksheet: {worksheet_name}")
+            
+            if not transactions:
+                logger.warning("No USDT transactions to write")
+                return
+            
+            # Clear existing data and write headers
+            worksheet.clear()
+            
+            # Write headers
+            headers = ['HASH', 'WALLET', 'AMT']
+            worksheet.append_row(headers)
+            
+            # Prepare data
+            rows_to_write = []
+            for tx in transactions:
+                row = [
+                    tx.get('hash', ''),
+                    tx.get('wallet', ''),
+                    float(tx.get('amt_usdt', 0))
+                ]
+                rows_to_write.append(row)
+            
+            # Write data in batches
+            batch_size = 100
+            total_batches = (len(rows_to_write) + batch_size - 1) // batch_size
+            
+            for i in range(0, len(rows_to_write), batch_size):
+                batch_num = i // batch_size + 1
+                batch = rows_to_write[i:i+batch_size]
+                worksheet.append_rows(batch)
+                logger.info(f"Written batch {batch_num}/{total_batches}")
+            
+            logger.info(f"✅ Successfully wrote {len(transactions)} USDT transactions to {worksheet_name}")
+            
+            # Add summary at the bottom
+            total_usdt = sum(tx.get('amt_usdt', 0) for tx in transactions)
+            summary_row = ['', 'TOTAL:', total_usdt]
+            worksheet.append_row(summary_row)
+            
+            logger.info(f"💰 Total USDT value: ${total_usdt:,.2f}")
+            
+        except Exception as e:
+            logger.error(f"Failed to write USDT transactions to {worksheet_name}: {e}")
+            raise
