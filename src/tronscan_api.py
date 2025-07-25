@@ -31,13 +31,25 @@ class TronScanAPI:
             logger.error(f"API request failed for {url}: {e}")
             raise
     
+    def _get_transaction_details(self, tx_hash: str) -> Dict:
+        """Get full transaction details including TRC20 transfers"""
+        try:
+            response = self._make_request('transaction-info', {'hash': tx_hash})
+            return response
+        except:
+            return {}
+    
     def _extract_usdt_transfers(self, tx: Dict, wallet_address: str) -> List[Dict]:
         """Extract USDT transfers and return simplified format"""
         results = []
+        tx_hash = tx.get('hash', '')
         
-        # Look for TRC20 transfers (USDT, USDC, etc.)
-        if 'trc20TransferInfo' in tx and tx['trc20TransferInfo']:
-            for transfer in tx['trc20TransferInfo']:
+        # Get full transaction details to access trc20TransferInfo
+        tx_details = self._get_transaction_details(tx_hash)
+        
+        # Look for TRC20 transfers in the detailed response
+        if 'trc20TransferInfo' in tx_details and tx_details['trc20TransferInfo']:
+            for transfer in tx_details['trc20TransferInfo']:
                 token_symbol = transfer.get('symbol', '').upper()
                 
                 # Only process USDT transfers
@@ -58,10 +70,11 @@ class TronScanAPI:
                     # Only include if amount > 0
                     if usdt_amount > 0:
                         results.append({
-                            'hash': tx.get('hash', ''),
+                            'hash': tx_hash,
                             'wallet': wallet_address,
                             'amt_usdt': usdt_amount
                         })
+                        logger.info(f"💰 Found USDT transfer: {usdt_amount:,.2f} USDT in {tx_hash[:16]}...")
         
         return results
     
@@ -90,6 +103,8 @@ class TronScanAPI:
                 transactions = response['data']
                 if not transactions:
                     break
+                
+                logger.info(f"Checking {len(transactions)} transactions for USDT transfers...")
                 
                 # Extract USDT transfers from each transaction
                 for tx in transactions:

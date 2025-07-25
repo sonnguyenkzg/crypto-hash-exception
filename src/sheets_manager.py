@@ -504,3 +504,49 @@ class GoogleSheetsManager:
         except Exception as e:
             logger.error(f"Failed to write USDT transactions to {worksheet_name}: {e}")
             raise
+
+    # Add this method to your existing GoogleSheetsManager class
+
+def get_worksheet_data_as_dict(self, worksheet_name: str, key_column: str) -> Dict[str, Dict]:
+    """Get worksheet data as dictionary keyed by specified column"""
+    try:
+        worksheet = self.workbook.worksheet(worksheet_name)
+        all_values = worksheet.get_all_values()
+        
+        if not all_values:
+            return {}
+        
+        headers = [h.strip().lower() for h in all_values[0]]
+        data_rows = all_values[1:]
+        
+        # Find key column index
+        key_col_index = None
+        for i, header in enumerate(headers):
+            if key_column.lower() in header:
+                key_col_index = i
+                break
+        
+        if key_col_index is None:
+            logger.error(f"Key column '{key_column}' not found in {worksheet_name}")
+            return {}
+        
+        result = {}
+        for row_idx, row in enumerate(data_rows, 2):
+            if len(row) > key_col_index and row[key_col_index].strip():
+                key = row[key_col_index].strip()
+                
+                # Create row dictionary with all columns
+                row_dict = {'row_number': row_idx}
+                for i, header in enumerate(headers):
+                    if i < len(row):
+                        row_dict[header] = row[i].strip()
+                    else:
+                        row_dict[header] = ''
+                
+                result[key] = row_dict
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Failed to read {worksheet_name} as dict: {e}")
+        return {}
