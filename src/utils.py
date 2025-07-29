@@ -51,3 +51,35 @@ def get_env_variable(var_name: str, default: str = None) -> str:
     if value is None:
         raise ValueError(f"Environment variable {var_name} is required")
     return value
+
+# Add this function to your existing src/utils.py file
+
+def get_batch_timestamp_as_datetime(batch_id: str) -> str:
+    """
+    Convert batch ID (YYYYMMDDHHMMSS) back to formatted datetime string
+    
+    Args:
+        batch_id: Batch ID in format YYYYMMDDHHMMSS (e.g., "20250728140530")
+    
+    Returns:
+        Formatted datetime string (e.g., "2025-07-28 14:05:30")
+    """
+    try:
+        from datetime import datetime
+        import pytz
+        
+        # Parse the batch ID timestamp
+        dt = datetime.strptime(batch_id, '%Y%m%d%H%M%S')
+        
+        # Convert to Bangkok timezone (assuming that's what was used originally)
+        bangkok_tz = pytz.timezone('Asia/Bangkok')
+        dt_bangkok = bangkok_tz.localize(dt)
+        
+        # Return formatted string
+        return dt_bangkok.strftime('%Y-%m-%d %H:%M:%S')
+        
+    except Exception as e:
+        # Fallback to current time if parsing fails
+        from datetime import datetime
+        import pytz
+        return datetime.now(pytz.timezone('Asia/Bangkok')).strftime('%Y-%m-%d %H:%M:%S')
